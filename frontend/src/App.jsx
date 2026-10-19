@@ -12,7 +12,8 @@ import {
   Compass,
   Layers,
   List,
-  ChevronDown
+  ChevronDown,
+  PenTool
 } from 'lucide-react';
 import GraphCanvas from './components/GraphCanvas';
 import FilterPanel from './components/FilterPanel';
@@ -21,6 +22,7 @@ import LiteratureConnectorModal from './components/LiteratureConnectorModal';
 import UploadModal from './components/UploadModal';
 import HelpModal from './components/HelpModal';
 import PapersListView from './components/PapersListView';
+import PaperStudio from './components/PaperStudio';
 
 export default function App() {
   const [graphData, setGraphData] = useState({ elements: { nodes: [], edges: [] }, stats: {}, clusters: [] });
@@ -189,6 +191,14 @@ export default function App() {
             <List size={14} />
             <span>Catalog</span>
           </button>
+          <button
+            className={`view-mode-btn ${viewMode === 'studio' ? 'active' : ''}`}
+            onClick={() => setViewMode('studio')}
+            title="AI Academic Writing Studio"
+          >
+            <PenTool size={14} />
+            <span>Studio</span>
+          </button>
         </div>
 
         {/* Live Metrics HUD */}
@@ -304,57 +314,67 @@ export default function App() {
 
       {/* Main Viewport */}
       <main className="main-view" onClick={() => setExportMenuOpen(false)}>
-        <FilterPanel
-          clusters={graphData.clusters || []}
-          filterClusters={filterClusters}
-          setFilterClusters={setFilterClusters}
-          filterEdgeTypes={filterEdgeTypes}
-          setFilterEdgeTypes={setFilterEdgeTypes}
-          landmarksOnly={landmarksOnly}
-          setLandmarksOnly={setLandmarksOnly}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onOpenConnector={() => {
-            setConnectorSourceId('');
-            setConnectorOpen(true);
-          }}
-          isOpen={sidebarOpen}
-          onToggleOpen={() => setSidebarOpen(!sidebarOpen)}
-          totalMatchingPapers={matchingCount}
-        />
-
-        {viewMode === 'graph' ? (
-          <GraphCanvas
-            elements={graphData.elements}
-            onSelectNode={setSelectedNode}
-            selectedNodeId={selectedNode?.id}
-            highlightPath={highlightPath}
-            filterEdgeTypes={filterEdgeTypes}
-            filterClusters={filterClusters}
-            landmarksOnly={landmarksOnly}
-            searchQuery={searchQuery}
-            theme={theme}
-            onOpenHelp={() => setHelpOpen(true)}
-          />
-        ) : (
-          <PapersListView
+        {viewMode === 'studio' ? (
+          <PaperStudio
             nodes={rawNodes}
-            clusters={graphData.clusters || []}
-            filterClusters={filterClusters}
-            filterEdgeTypes={filterEdgeTypes}
-            landmarksOnly={landmarksOnly}
-            searchQuery={searchQuery}
-            onSelectNode={setSelectedNode}
+            edges={graphData.elements?.edges || []}
             onSwitchToGraph={() => setViewMode('graph')}
           />
-        )}
+        ) : (
+          <>
+            <FilterPanel
+              clusters={graphData.clusters || []}
+              filterClusters={filterClusters}
+              setFilterClusters={setFilterClusters}
+              filterEdgeTypes={filterEdgeTypes}
+              setFilterEdgeTypes={setFilterEdgeTypes}
+              landmarksOnly={landmarksOnly}
+              setLandmarksOnly={setLandmarksOnly}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onOpenConnector={() => {
+                setConnectorSourceId('');
+                setConnectorOpen(true);
+              }}
+              isOpen={sidebarOpen}
+              onToggleOpen={() => setSidebarOpen(!sidebarOpen)}
+              totalMatchingPapers={matchingCount}
+            />
 
-        {selectedNode && (
-          <InspectionDrawer
-            selectedNode={selectedNode}
-            onClose={() => setSelectedNode(null)}
-            onOpenConnectorWithPaper={handleOpenConnectorWithPaper}
-          />
+            {viewMode === 'graph' ? (
+              <GraphCanvas
+                elements={graphData.elements}
+                onSelectNode={setSelectedNode}
+                selectedNodeId={selectedNode?.id}
+                highlightPath={highlightPath}
+                filterEdgeTypes={filterEdgeTypes}
+                filterClusters={filterClusters}
+                landmarksOnly={landmarksOnly}
+                searchQuery={searchQuery}
+                theme={theme}
+                onOpenHelp={() => setHelpOpen(true)}
+              />
+            ) : (
+              <PapersListView
+                nodes={rawNodes}
+                clusters={graphData.clusters || []}
+                filterClusters={filterClusters}
+                filterEdgeTypes={filterEdgeTypes}
+                landmarksOnly={landmarksOnly}
+                searchQuery={searchQuery}
+                onSelectNode={setSelectedNode}
+                onSwitchToGraph={() => setViewMode('graph')}
+              />
+            )}
+
+            {selectedNode && (
+              <InspectionDrawer
+                selectedNode={selectedNode}
+                onClose={() => setSelectedNode(null)}
+                onOpenConnectorWithPaper={handleOpenConnectorWithPaper}
+              />
+            )}
+          </>
         )}
       </main>
 

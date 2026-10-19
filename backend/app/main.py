@@ -15,6 +15,8 @@ from app.services.academic_api import AcademicAPIClient
 from app.services.llm_extractor import LLMExtractor
 from app.services.graph_engine import GraphEngine
 from app.services.report_generator import ReportGenerator
+from app.services.writer_service import writer_service
+from pydantic import BaseModel
 
 app = FastAPI(title=settings.app_name, version=settings.version)
 
@@ -340,6 +342,59 @@ async def seed_sample_corpus():
         await save_edge(e)
 
     return {"message": "Sample research literature seeded successfully", "papers_count": len(sample_papers), "edges_count": len(sample_edges)}
+    
+# --- PaperStudio AI Writing Endpoints ---
+
+class AutocompleteRequest(BaseModel):
+    current_text: str
+    paper_ids: Optional[List[str]] = None
+
+class SynthesizeDebateRequest(BaseModel):
+    paper_a_id: str
+    paper_b_id: str
+    relation: Optional[str] = "CONTRADICTS"
+
+class GenerateBridgeRequest(BaseModel):
+    path_ids: List[str]
+
+class RephraseRequest(BaseModel):
+    text: str
+    tone: Optional[str] = "scholarly"
+
+@app.post("/api/writer/autocomplete")
+async def writer_autocomplete(req: AutocompleteRequest):
+    """Predicts next academic sentence grounded in active graph papers."""
+    all_papers = await get_all_papers()
+    if req.paper_ids:
+        active = [p.model_dump() for p in all_papers if p.id in req.paper_ids]
+    else:
+        active = [p.model_dump() for p in all_papers]
+    return await writer_service.autocomplete(req.current_text, active)
+
+@app.post("/api/writer/synthesize-debate")
+async def writer_synthesize_debate(req: SynthesizeDebateRequest):
+    """Synthesizes literature review text discussing conflicting or extending claims."""
+    all_papers = await get_all_papers()
+    p_a = next((p.model_dump() for p in all_papers if p.id == req.paper_a_id), None)
+    p_b = next((p.model_dump() for p in all_papers if p.id == req.paper_b_id), None)
+    if not p_a or not p_b:
+        raise HTTPException(status_code=404, detail="One or both papers not found in active graph.")
+    return await writer_service.synthesize_debate(p_a, p_b, req.relation or "CONTRADICTS")
+
+@app.post("/api/writer/generate-bridge")
+async def writer_generate_bridge(req: GenerateBridgeRequest):
+    """Generates a transitional paragraph linking disparate papers along a citation chain."""
+    all_papers = await get_all_papers()
+    paper_map = {p.id: p.model_dump() for p in all_papers}
+    path_papers = [paper_map[pid] for pid in req.path_ids if pid in paper_map]
+    if len(path_papers) < 2:
+        raise HTTPException(status_code=400, detail="Bridge requires at least two valid papers.")
+    return await writer_service.generate_bridge(path_papers)
+
+@app.post("/api/writer/rephrase")
+async def writer_rephrase(req: RephraseRequest):
+    """Converts user input into formal scholarly phrasing."""
+    return await writer_service.paraphrase_academic(req.text, req.tone or "scholarly")
 
 @app.delete("/api/graph/clear")
 async def clear_all():
